@@ -1,0 +1,19 @@
+GitHub Pages Deployment Steps
+
+1. Initialize git and commit files:
+   git init
+   git add .
+   git commit -m "Initial commit: Airline Catering Delivery Slip"
+
+2. Create a new repository on GitHub (public).
+
+3. Add the remote and push main branch:
+   git branch -M main
+   git remote add origin https://github.com/<your-username>/<repo-name>.git
+   git push -u origin main
+
+4. Enable GitHub Pages:
+   In GitHub repo: Settings -> Pages -> Source: Deploy from a branch -> Branch: main (/root)
+
+5. Access your site:
+   https://<your-username>.github.io/<repo-name>/

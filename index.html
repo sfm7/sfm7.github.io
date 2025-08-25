@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8"/>
 <title>Oracle OTM - Airline Catering Delivery Slip</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<meta content="width=device-width, initial-scale=1, maximum-scale=1" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
 <style>
   body { font-family: Inter, Arial, sans-serif; margin: 24px; color: #111827; }
   .header { display: flex; justify-content: space-between; align-items: center; }
@@ -39,417 +40,503 @@
   .barcode, .qrcode { text-align: center; }
   .no-print { display: block; }
   @media print { .no-print { display: none !important; } }
+
+
+/* Mobile-first adjustments */
+:root { --pad: 12px; --gap: 12px; --radius: 10px; }
+body { margin: var(--pad); }
+.header { flex-wrap: wrap; gap: 8px; }
+.title { font-size: 18px; }
+.grid { display: grid; grid-template-columns: 1fr; gap: var(--gap); }
+.card { padding: 12px; border-radius: var(--radius); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field { min-width: 0; }
+.value input, .value textarea { font-size: 14px; padding: 10px 12px; }
+button, .btn { min-height: 40px; padding: 10px 14px; font-size: 14px; border-radius: 8px; }
+
+/* Full-width controls on very small screens */
+@media (max-width: 560px) {
+  .row { grid-template-columns: 1fr; }
+  .title { font-size: 16px; }
+  .header img { max-height: 28px; }
+  .grid { gap: 10px; }
+  .card h3 { font-size: 15px; }
+}
+
+/* Tablets */
+@media (min-width: 561px) and (max-width: 900px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .row { grid-template-columns: 1fr 1fr; }
+}
+
+/* Desktops */
+@media (min-width: 901px) {
+  .grid { grid-template-columns: repeat(12, 1fr); }
+  .card[style*="grid-column: span 6"] { grid-column: span 6; }
+}
+
+/* Make items modal content mobile-friendly */
+#itemsModal .modal-content { width: 95%; max-width: 720px; margin: 10vh auto; padding: 12px; }
+#itemsContent > div { margin-bottom: 10px; }
+#itemsContent .item-row { display: flex; align-items: center; gap: 8px; }
+#itemsContent label { font-size: 14px; }
+#itemsContent input[type="number"] { height: 32px; width: 56px; font-size: 14px; }
+#itemsContent button { height: 32px; width: 32px; }
+
+/* Make sticky footer buttons easier to tap */
+.sticky-actions { position: sticky; bottom: 0; background: #fff; padding-top: 8px; }
+
+/* Improve tables, if any */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; }
+
+/* Images responsive */
+img { max-width: 100%; height: auto; }
+
+
+/* ===== Targeted Mobile Form Improvements (Catering Items & Driver Info) ===== */
+@media (max-width: 680px) {
+  /* General form ergonomics */
+  .card { padding: 16px; }
+  .row { grid-template-columns: 1fr !important; gap: 12px; }
+  .field { margin-bottom: 8px; }
+  .label { font-size: 15px; margin-bottom: 6px; line-height: 1.25; }
+  .value input, .value textarea, .value select {
+    min-height: 44px; padding: 12px 12px; font-size: 16px; line-height: 1.2;
+  }
+  input[type=number] { -moz-appearance: textfield; }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  
+  /* Buttons and actions */
+  button, .btn { min-height: 44px; font-size: 16px; padding: 10px 14px; }
+  .actions, .sticky-actions { gap: 10px; }
+
+  /* Section-specific spacing using heading context */
+  .card h3 { margin-bottom: 12px; font-size: 17px; }
+
+  /* Make long lists scrollable within modal on small screens */
+  #itemsModal .modal-content { max-height: 80vh; overflow: auto; padding: 12px; }
+  #itemsContent .item-row { gap: 10px; }
+
+  /* Prevent label truncation and cramped columns when any inline grid is used */
+  .field.inline, .row.inline { display: grid; grid-template-columns: 1fr !important; }
+
+  /* Better spacing for paired fields like date/time */
+  .field-pair { display: grid; grid-template-columns: 1fr !important; gap: 12px; }
+
+  /* Signature/driver areas: increase field spacing and input sizes */
+  .driver-section .row, .signatures .row { grid-template-columns: 1fr !important; }
+  .driver-section .value input { min-height: 48px; }
+
+  /* Tighter card edges prevention */
+  .card .row + .row { margin-top: 8px; }
+}
+
+/* Desktop refinements for better balance */
+@media (min-width: 681px) and (max-width: 1080px) {
+  .row { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .value input, .value textarea, .value select { min-height: 40px; }
+}
 </style>
 </head>
 <body>
-  <div class="header">
-    <div style="display:flex; align-items:center; gap:16px;">
-      <img src="Oracle-Logo.png" alt="Oracle" style="height:36px;"/>
-      <img src="Viva_Logotipo-01.png" alt="Viva Airline" style="height:36px;"/>
-      <div>
-        <div class="title">Airline Catering Delivery Slip</div>
-      </div>
-    </div>
-    <div>
-      <div id="barcode" class="barcode"></div>
-      <div id="qrcode" class="qrcode" style="margin-top:8px;"></div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <!-- Delivery Information -->
-    <div class="card" style="grid-column: span 6;">
-      <h3>Delivery Information</h3>
-      <div class="row">
-        <div class="field half">
-          <div class="label">Delivery Slip Number</div>
-          <div class="value"><input type="text" id="delivery_slip_number" placeholder="DS-0001"></div>
-        </div>
-        <div class="field half">
-          <div class="label">OTM Shipment ID</div>
-          <div class="value"><input type="text" id="otm_shipment_id" placeholder="OTM-123456"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Order Number</div>
-          <div class="value"><input type="text" id="order_number" placeholder="ORD-7890"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Purchase Order</div>
-          <div class="value"><input type="text" id="purchase_order" placeholder="PO-4567"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Date Delivered</div>
-          <div class="value"><input type="date" id="date_delivered" value="2025-08-21"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Time Delivered</div>
-          <div class="value"><input type="time" id="time_delivered" value="11:24"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Time Zone</div>
-          <div class="value"><input type="text" id="time_zone" placeholder="UTC"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Flight Information -->
-    <div class="card" style="grid-column: span 6;">
-      <h3>Flight Information</h3>
-      <div class="row">
-        <div class="field half">
-          <div class="label">Airline</div>
-          <div class="value"><input type="text" id="airline" placeholder="Sample Air"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Flight Number</div>
-          <div class="value"><input type="text" id="flight_number" placeholder="SA123"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Tail Number</div>
-          <div class="value"><input type="text" id="tail_number" placeholder="N123AB"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Flight Date</div>
-          <div class="value"><input type="date" id="flight_date"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Departure Airport</div>
-          <div class="value"><input type="text" id="dep_airport" placeholder="SFO"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Arrival Airport</div>
-          <div class="value"><input type="text" id="arr_airport" placeholder="LAX"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Gate</div>
-          <div class="value"><input type="text" id="gate" placeholder="G12"></div>
-        </div>
-        <div class="field third">
-          <div class="label">STD</div>
-          <div class="value"><input type="datetime-local" id="std"></div>
-        </div>
-        <div class="field third">
-          <div class="label">ETD</div>
-          <div class="value"><input type="datetime-local" id="etd"></div>
-        </div>
-        <div class="field third">
-          <div class="label">STA</div>
-          <div class="value"><input type="datetime-local" id="sta"></div>
-        </div>
-        <div class="field third">
-          <div class="label">ETA</div>
-          <div class="value"><input type="datetime-local" id="eta"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Route</div>
-          <div class="value"><input type="text" id="route" placeholder="SFO-LAX"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Aircraft Type</div>
-          <div class="value"><input type="text" id="aircraft_type" placeholder="A321"></div>
-        </div>
-      </div>
-    </div>
-    <!-- Vehicle Information -->
-    <div class="card" style="grid-column: span 6;">
-      <h3>Vehicle Information</h3>
-      <div class="row">
-        <div class="field half">
-          <div class="label">Vehicle ID</div>
-          <div class="value"><input type="text" id="vehicle_id" placeholder="TRK-45"></div>
-        </div>
-        <div class="field half">
-          <div class="label">License Plate</div>
-          <div class="value"><input type="text" id="license_plate" placeholder="8ABC123"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Trailer ID</div>
-          <div class="value"><input type="text" id="trailer_id" placeholder="TRL-77"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Refrigeration Unit ID</div>
-          <div class="value"><input type="text" id="refrig_unit_id" placeholder="CARRIER-01"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Temp Start (°C)</div>
-          <div class="value"><input type="number" id="temp_start_c" placeholder="4"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Temp End (°C)</div>
-          <div class="value"><input type="number" id="temp_end_c" placeholder="2"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Load ID</div>
-          <div class="value"><input type="text" id="load_id" placeholder="LOAD-999"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Seal Pre</div>
-          <div class="value"><input type="text" id="seal_pre" placeholder="SEAL123"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Seal Post</div>
-          <div class="value"><input type="text" id="seal_post" placeholder="SEAL456"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Dock Bay</div>
-          <div class="value"><input type="text" id="dock_bay" placeholder="Dock 3"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Mileage In</div>
-          <div class="value"><input type="number" id="mileage_in" placeholder="120345"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Mileage Out</div>
-          <div class="value"><input type="number" id="mileage_out" placeholder="120367"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Driver Information -->
-    <div class="card" style="grid-column: span 6;">
-      <h3>Driver Information</h3>
-      <div class="row">
-        <div class="field half">
-          <div class="label">Driver Name</div>
-          <div class="value"><input type="text" id="driver_name" placeholder="Jane Doe"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Driver ID</div>
-          <div class="value"><input type="text" id="driver_id" placeholder="DRV-001"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Company</div>
-          <div class="value"><input type="text" id="company" placeholder="CaterCo"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Driver Phone</div>
-          <div class="value"><input type="tel" id="driver_phone" placeholder="555-0100"></div>
-        </div>
-        <div class="field full">
-          <div class="label">Driver Email</div>
-          <div class="value"><input type="email" id="driver_email" placeholder="driver@example.com"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Received By Information -->
-    <div class="card" style="grid-column: span 6;">
-      <h3>Received By</h3>
-      <div class="row">
-        <div class="field half">
-          <div class="label">Receiver Name</div>
-          <div class="value"><input type="text" id="recv_name" placeholder="John Smith"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Role</div>
-          <div class="value"><input type="text" id="recv_role" placeholder="Ramp Ops"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Location</div>
-          <div class="value"><input type="text" id="recv_location" placeholder="Gate 12"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Badge Number</div>
-          <div class="value"><input type="text" id="recv_badge" placeholder="BADGE123"></div>
-        </div>
-      </div>
-    </div>
-        <!-- Catering Items -->
-    <div class="card" style="grid-column: span 12;">
-      <h3>Catering Items</h3>
-      <div class="row">
-        <div class="field third">
-          <div class="label">Barset Number</div>
-          <div class="value"><input type="text" id="barset_number" placeholder="Enter barset number"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Packing Standard</div>
-          <div class="value"><input type="text" id="packing_standard" value="PP_DIC24(EMPIEZA EL 12122024)"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Manifest</div>
-          <div class="value"><input type="text" id="manifest" value="VBMEX269382"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Ovens</div>
-          <div class="value"><input type="number" id="ovens" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Atlas Box</div>
-          <div class="value"><input type="number" id="atlas_box" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Trolleys</div>
-          <div class="value"><input type="number" id="trolleys" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Waste Carts</div>
-          <div class="value"><input type="number" id="waste_carts" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Dry Ice (kg)</div>
-          <div class="value"><input type="number" step="0.1" id="dry_ice_kg" placeholder="0.0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Ice (kg)</div>
-          <div class="value"><input type="number" step="0.1" id="ice_kg" placeholder="0.0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals Y</div>
-          <div class="value"><input type="number" id="meals_y" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals P</div>
-          <div class="value"><input type="number" id="meals_p" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals J</div>
-          <div class="value"><input type="number" id="meals_j" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals F</div>
-          <div class="value"><input type="number" id="meals_f" placeholder="0"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Special Meals</div>
-          <div class="value"><input type="text" id="special_meals" placeholder="Vegetarian, Kosher, etc."></div>
-        </div>
-        <div class="field half">
-          <div class="label">Special Beverages</div>
-          <div class="value"><input type="text" id="special_beverages" placeholder="Wine, Champagne, etc."></div>
-        </div>
-        <div class="field four">
-          <div class="label">Items Detail</div>
-          <div class="value"><textarea id="items_detail" placeholder="Selected catering items will appear here..."></textarea></div>
-        </div>
-        <div class="field two" style="display: flex; align-items: end;">
-          <button type="button" onclick="showItemsModal()" style="width: 100%; padding: 8px 12px; background: #3B82F6; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">Items Detail</button>
-        </div>
-        <div class="field full">
-          <div class="label">Notes / Exceptions</div>
-          <div class="value"><textarea id="notes_exceptions" placeholder="Any special notes or exceptions..."></textarea></div>
-        </div>
-      </div>
-    </div>
-        <div class="field third">
-          <div class="label">Total Pieces</div>
-          <div class="value"><input type="number" id="total_pieces" placeholder="25"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Ovens</div>
-          <div class="value"><input type="number" id="ovens" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Atlas Box</div>
-          <div class="value"><input type="number" id="atlas_box" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Trolleys</div>
-          <div class="value"><input type="number" id="trolleys" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Waste Carts</div>
-          <div class="value"><input type="number" id="waste_carts" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Dry Ice (kg)</div>
-          <div class="value"><input type="number" step="0.1" id="dry_ice_kg" placeholder="0.0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Ice (kg)</div>
-          <div class="value"><input type="number" step="0.1" id="ice_kg" placeholder="0.0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals Y</div>
-          <div class="value"><input type="number" id="meals_y" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals P</div>
-          <div class="value"><input type="number" id="meals_p" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals J</div>
-          <div class="value"><input type="number" id="meals_j" placeholder="0"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Meals F</div>
-          <div class="value"><input type="number" id="meals_f" placeholder="0"></div>
-        </div>
-        <div class="field half">
-          <div class="label">Special Meals</div>
-          <div class="value"><input type="text" id="special_meals" placeholder="VGML, KSML, etc."></div>
-        </div>
-        <div class="field half">
-          <div class="label">Special Beverages</div>
-          <div class="value"><input type="text" id="special_beverages" placeholder="Wine, Champagne, etc."></div>
-        </div>
-        <div class="field third">
-          <div class="label">Special Instructions</div>
-          <div class="value"><input type="text" id="special_instructions" placeholder="Keep refrigerated"></div>
-        </div>
-        <div class="field full">
-          <div class="label">Notes / Exceptions</div>
-          <div class="value"><textarea id="notes_exceptions" placeholder="Any special notes or exceptions..."></textarea></div>
-        </div>
-      </div>
-    </div>
-        <div class="field third">
-          <div class="label">Total Pieces</div>
-          <div class="value"><input type="number" id="total_pieces" placeholder="25"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Total Weight (kg)</div>
-          <div class="value"><input type="number" id="total_weight" placeholder="150.5"></div>
-        </div>
-        <div class="field third">
-          <div class="label">Special Instructions</div>
-          <div class="value"><input type="text" id="special_instructions" placeholder="Keep refrigerated"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notes and Comments -->
-    <div class="card" style="grid-column: span 12;">
-      <h3>Notes and Comments</h3>
-      <div class="row">
-        <div class="field full">
-          <div class="label">Delivery Notes</div>
-          <div class="value"><textarea id="delivery_notes" placeholder="Any delivery notes or issues..."></textarea></div>
-        </div>
-        <div class="field full">
-          <div class="label">Quality Check Notes</div>
-          <div class="value"><textarea id="quality_notes" placeholder="Quality inspection notes..."></textarea></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Signatures -->
-  <div class="signatures">
-    <div class="signature-box">
-      <div class="signature-title">Driver Signature</div>
-      <div class="signature-line"></div>
-      <div style="font-size: 12px; color: #6B7280;">
-        <div>Name: <input type="text" id="driver_sig_name" style="border:none; border-bottom:1px solid #ccc; width:200px;" placeholder="Driver Name"></div>
-        <div style="margin-top:8px;">Date: <input type="date" id="driver_sig_date" style="border:none; border-bottom:1px solid #ccc; width:120px;"></div>
-      </div>
-    </div>
-    <div class="signature-box">
-      <div class="signature-title">Receiver Signature</div>
-      <div class="signature-line"></div>
-      <div style="font-size: 12px; color: #6B7280;">
-        <div>Name: <input type="text" id="receiver_sig_name" style="border:none; border-bottom:1px solid #ccc; width:200px;" placeholder="Receiver Name"></div>
-        <div style="margin-top:8px;">Date: <input type="date" id="receiver_sig_date" style="border:none; border-bottom:1px solid #ccc; width:120px;"></div>
-      </div>
-    </div>
-  </div>
-  <div class="section no-print" style="margin-top: 16px;">
-    <button onclick="saveAsPDF()" style="padding:8px 12px; border:1px solid #D1D5DB; border-radius:6px; background:#111827; color:#fff; cursor:pointer;">Save</button>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script>
+<div class="header">
+<div style="display:flex; align-items:center; gap:16px;">
+<img alt="Oracle" src="Oracle-Logo.png" style="height:36px;"/>
+<img alt="Viva Airline" src="Viva_Logotipo-01.png" style="height:36px;"/>
+<div>
+<div class="title">Airline Catering Delivery Slip</div>
+</div>
+</div>
+<div>
+<div class="barcode" id="barcode"></div>
+<div class="qrcode" id="qrcode" style="margin-top:8px;"></div>
+</div>
+</div>
+<div class="grid">
+<!-- Delivery Information -->
+<div class="card" style="grid-column: span 6;">
+<h3>Delivery Information</h3>
+<div class="row">
+<div class="field half">
+<div class="label">Delivery Slip Number</div>
+<div class="value"><input id="delivery_slip_number" placeholder="DS-0001" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">OTM Shipment ID</div>
+<div class="value"><input id="otm_shipment_id" placeholder="OTM-123456" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Order Number</div>
+<div class="value"><input id="order_number" placeholder="ORD-7890" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Purchase Order</div>
+<div class="value"><input id="purchase_order" placeholder="PO-4567" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Date Delivered</div>
+<div class="value"><input id="date_delivered" type="date" value="2025-08-21"/></div>
+</div>
+<div class="field third">
+<div class="label">Time Delivered</div>
+<div class="value"><input id="time_delivered" type="time" value="11:24"/></div>
+</div>
+<div class="field third">
+<div class="label">Time Zone</div>
+<div class="value"><input id="time_zone" placeholder="UTC" type="text"/></div>
+</div>
+</div>
+</div>
+<!-- Flight Information -->
+<div class="card" style="grid-column: span 6;">
+<h3>Flight Information</h3>
+<div class="row">
+<div class="field half">
+<div class="label">Airline</div>
+<div class="value"><input id="airline" placeholder="Sample Air" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Flight Number</div>
+<div class="value"><input id="flight_number" placeholder="SA123" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Tail Number</div>
+<div class="value"><input id="tail_number" placeholder="N123AB" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Flight Date</div>
+<div class="value"><input id="flight_date" type="date"/></div>
+</div>
+<div class="field third">
+<div class="label">Departure Airport</div>
+<div class="value"><input id="dep_airport" placeholder="SFO" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Arrival Airport</div>
+<div class="value"><input id="arr_airport" placeholder="LAX" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Gate</div>
+<div class="value"><input id="gate" placeholder="G12" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">STD</div>
+<div class="value"><input id="std" type="datetime-local"/></div>
+</div>
+<div class="field third">
+<div class="label">ETD</div>
+<div class="value"><input id="etd" type="datetime-local"/></div>
+</div>
+<div class="field third">
+<div class="label">STA</div>
+<div class="value"><input id="sta" type="datetime-local"/></div>
+</div>
+<div class="field third">
+<div class="label">ETA</div>
+<div class="value"><input id="eta" type="datetime-local"/></div>
+</div>
+<div class="field third">
+<div class="label">Route</div>
+<div class="value"><input id="route" placeholder="SFO-LAX" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Aircraft Type</div>
+<div class="value"><input id="aircraft_type" placeholder="A321" type="text"/></div>
+</div>
+</div>
+</div>
+<!-- Vehicle Information -->
+<div class="card" style="grid-column: span 6;">
+<h3>Vehicle Information</h3>
+<div class="row">
+<div class="field half">
+<div class="label">Vehicle ID</div>
+<div class="value"><input id="vehicle_id" placeholder="TRK-45" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">License Plate</div>
+<div class="value"><input id="license_plate" placeholder="8ABC123" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Trailer ID</div>
+<div class="value"><input id="trailer_id" placeholder="TRL-77" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Refrigeration Unit ID</div>
+<div class="value"><input id="refrig_unit_id" placeholder="CARRIER-01" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Temp Start (°C)</div>
+<div class="value"><input id="temp_start_c" placeholder="4" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Temp End (°C)</div>
+<div class="value"><input id="temp_end_c" placeholder="2" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Load ID</div>
+<div class="value"><input id="load_id" placeholder="LOAD-999" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Seal Pre</div>
+<div class="value"><input id="seal_pre" placeholder="SEAL123" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Seal Post</div>
+<div class="value"><input id="seal_post" placeholder="SEAL456" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Dock Bay</div>
+<div class="value"><input id="dock_bay" placeholder="Dock 3" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Mileage In</div>
+<div class="value"><input id="mileage_in" placeholder="120345" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Mileage Out</div>
+<div class="value"><input id="mileage_out" placeholder="120367" type="number"/></div>
+</div>
+</div>
+</div>
+<!-- Driver Information -->
+<div class="card driver-section" style="grid-column: span 6;">
+<h3>Driver Information</h3>
+<div class="row">
+<div class="field half">
+<div class="label">Driver Name</div>
+<div class="value"><input id="driver_name" placeholder="Jane Doe" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Driver ID</div>
+<div class="value"><input id="driver_id" placeholder="DRV-001" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Company</div>
+<div class="value"><input id="company" placeholder="CaterCo" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Driver Phone</div>
+<div class="value"><input id="driver_phone" placeholder="555-0100" type="tel"/></div>
+</div>
+<div class="field full">
+<div class="label">Driver Email</div>
+<div class="value"><input id="driver_email" placeholder="driver@example.com" type="email"/></div>
+</div>
+</div>
+</div>
+<!-- Received By Information -->
+<div class="card" style="grid-column: span 6;">
+<h3>Received By</h3>
+<div class="row">
+<div class="field half">
+<div class="label">Receiver Name</div>
+<div class="value"><input id="recv_name" placeholder="John Smith" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Role</div>
+<div class="value"><input id="recv_role" placeholder="Ramp Ops" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Location</div>
+<div class="value"><input id="recv_location" placeholder="Gate 12" type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Badge Number</div>
+<div class="value"><input id="recv_badge" placeholder="BADGE123" type="text"/></div>
+</div>
+</div>
+</div>
+<!-- Catering Items -->
+<div class="card catering-section" style="grid-column: span 12;">
+<h3>Catering Items</h3>
+<div class="row">
+<div class="field third">
+<div class="label">Barset Number</div>
+<div class="value"><input id="barset_number" placeholder="Enter barset number" type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Packing Standard</div>
+<div class="value"><input id="packing_standard" type="text" value="PP_DIC24(EMPIEZA EL 12122024)"/></div>
+</div>
+<div class="field third">
+<div class="label">Manifest</div>
+<div class="value"><input id="manifest" type="text" value="VBMEX269382"/></div>
+</div>
+<div class="field third">
+<div class="label">Ovens</div>
+<div class="value"><input id="ovens" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Atlas Box</div>
+<div class="value"><input id="atlas_box" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Trolleys</div>
+<div class="value"><input id="trolleys" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Waste Carts</div>
+<div class="value"><input id="waste_carts" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Dry Ice (kg)</div>
+<div class="value"><input id="dry_ice_kg" placeholder="0.0" step="0.1" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Ice (kg)</div>
+<div class="value"><input id="ice_kg" placeholder="0.0" step="0.1" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals Y</div>
+<div class="value"><input id="meals_y" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals P</div>
+<div class="value"><input id="meals_p" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals J</div>
+<div class="value"><input id="meals_j" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals F</div>
+<div class="value"><input id="meals_f" placeholder="0" type="number"/></div>
+</div>
+<div class="field half">
+<div class="label">Special Meals</div>
+<div class="value"><input id="special_meals" placeholder="Vegetarian, Kosher, etc." type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Special Beverages</div>
+<div class="value"><input id="special_beverages" placeholder="Wine, Champagne, etc." type="text"/></div>
+</div>
+<div class="field four">
+<div class="label">Items Detail</div>
+<div class="value"><textarea id="items_detail" placeholder="Selected catering items will appear here..."></textarea></div>
+</div>
+<div class="field two" style="display: flex; align-items: end;">
+<button onclick="showItemsModal()" style="width: 100%; padding: 8px 12px; background: #3B82F6; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;" type="button">Items Detail</button>
+</div>
+<div class="field full">
+<div class="label">Notes / Exceptions</div>
+<div class="value"><textarea id="notes_exceptions" placeholder="Any special notes or exceptions..."></textarea></div>
+</div>
+</div>
+</div>
+<div class="field third">
+<div class="label">Total Pieces</div>
+<div class="value"><input id="total_pieces" placeholder="25" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Ovens</div>
+<div class="value"><input id="ovens" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Atlas Box</div>
+<div class="value"><input id="atlas_box" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Trolleys</div>
+<div class="value"><input id="trolleys" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Waste Carts</div>
+<div class="value"><input id="waste_carts" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Dry Ice (kg)</div>
+<div class="value"><input id="dry_ice_kg" placeholder="0.0" step="0.1" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Ice (kg)</div>
+<div class="value"><input id="ice_kg" placeholder="0.0" step="0.1" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals Y</div>
+<div class="value"><input id="meals_y" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals P</div>
+<div class="value"><input id="meals_p" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals J</div>
+<div class="value"><input id="meals_j" placeholder="0" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Meals F</div>
+<div class="value"><input id="meals_f" placeholder="0" type="number"/></div>
+</div>
+<div class="field half">
+<div class="label">Special Meals</div>
+<div class="value"><input id="special_meals" placeholder="VGML, KSML, etc." type="text"/></div>
+</div>
+<div class="field half">
+<div class="label">Special Beverages</div>
+<div class="value"><input id="special_beverages" placeholder="Wine, Champagne, etc." type="text"/></div>
+</div>
+<div class="field third">
+<div class="label">Special Instructions</div>
+<div class="value"><input id="special_instructions" placeholder="Keep refrigerated" type="text"/></div>
+</div>
+<div class="field full">
+<div class="label">Notes / Exceptions</div>
+<div class="value"><textarea id="notes_exceptions" placeholder="Any special notes or exceptions..."></textarea></div>
+</div>
+</div>
+<div class="field third">
+<div class="label">Total Pieces</div>
+<div class="value"><input id="total_pieces" placeholder="25" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Total Weight (kg)</div>
+<div class="value"><input id="total_weight" placeholder="150.5" type="number"/></div>
+</div>
+<div class="field third">
+<div class="label">Special Instructions</div>
+<div class="value"><input id="special_instructions" placeholder="Keep refrigerated" type="text"/></div>
+</div>
+<!-- Notes and Comments -->
+<div class="card" style="grid-column: span 12;">
+<h3>Notes and Comments</h3>
+<div class="row">
+<div class="field full">
+<div class="label">Delivery Notes</div>
+<div class="value"><textarea id="delivery_notes" placeholder="Any delivery notes or issues..."></textarea></div>
+</div>
+<div class="field full">
+<div class="label">Quality Check Notes</div>
+<div class="value"><textarea id="quality_notes" placeholder="Quality inspection notes..."></textarea></div>
+</div>
+</div>
+</div>
+<!-- Signatures -->
+<div class="signatures">
+<div class="signature-box">
+<div class="signature-title">Driver Signature</div>
+<div class="signature-line"></div>
+<div style="font-size: 12px; color: #6B7280;">
+<div>Name: <input id="driver_sig_name" placeholder="Driver Name" style="border:none; border-bottom:1px solid #ccc; width:200px;" type="text"/></div>
+<div style="margin-top:8px;">Date: <input id="driver_sig_date" style="border:none; border-bottom:1px solid #ccc; width:120px;" type="date"/></div>
+</div>
+</div>
+<div class="signature-box">
+<div class="signature-title">Receiver Signature</div>
+<div class="signature-line"></div>
+<div style="font-size: 12px; color: #6B7280;">
+<div>Name: <input id="receiver_sig_name" placeholder="Receiver Name" style="border:none; border-bottom:1px solid #ccc; width:200px;" type="text"/></div>
+<div style="margin-top:8px;">Date: <input id="receiver_sig_date" style="border:none; border-bottom:1px solid #ccc; width:120px;" type="date"/></div>
+</div>
+</div>
+</div>
+<div class="section no-print" style="margin-top: 16px;">
+<button onclick="saveAsPDF()" style="padding:8px 12px; border:1px solid #D1D5DB; border-radius:6px; background:#111827; color:#fff; cursor:pointer;">Save</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
     // Generate barcode and QR code
     function generateCodes() {
       const shipmentId = document.getElementById('otm_shipment_id').value || 'OTM-123456';
@@ -502,30 +589,25 @@
     document.getElementById('delivery_slip_number').addEventListener('input', generateCodes);
     document.getElementById('flight_number').addEventListener('input', generateCodes);
   </script>
-
-    <!-- Items Detail Modal -->
-    <div id="itemsModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-        <div style="background-color: white; margin: 2% auto; padding: 0; border-radius: 8px; width: 90%; max-width: 1200px; max-height: 90vh; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-            <div style="background: #3B82F6; color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Available Catering Items</h2>
-                <span onclick="closeItemsModal()" style="color: white; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1;">&times;</span>
-            </div>
-            <div style="padding: 16px; max-height: calc(90vh - 140px); overflow-y: auto;">
-                <div id="itemsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;"></div>
-            </div>
-            <div style="padding: 16px; background: #F9FAFB; border-top: 1px solid #E5E7EB; text-align: center;">
-                <button onclick="addSelectedItems()" style="padding: 8px 16px; background: #10B981; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Add Selected Items</button>
-                <button onclick="selectAllItems()" style="padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Select All</button>
-                <button onclick="clearAllItems()" style="padding: 8px 16px; background: #6B7280; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Clear All</button>
-                <button onclick="closeItemsModal()" style="padding: 8px 16px; background: #6B7280; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Cancel</button>
-            </div>
-        </div>
-    </div>
-    
-    
-    
-    
-    <script>
+<!-- Items Detail Modal -->
+<div id="itemsModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+<div style="background-color: white; margin: 2% auto; padding: 0; border-radius: 8px; width: 90%; max-width: 1200px; max-height: 90vh; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+<div style="background: #3B82F6; color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600;">Available Catering Items</h2>
+<span onclick="closeItemsModal()" style="color: white; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1;">×</span>
+</div>
+<div style="padding: 16px; max-height: calc(90vh - 140px); overflow-y: auto;">
+<div id="itemsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;"></div>
+</div>
+<div style="padding: 16px; background: #F9FAFB; border-top: 1px solid #E5E7EB; text-align: center;">
+<button onclick="addSelectedItems()" style="padding: 8px 16px; background: #10B981; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Add Selected Items</button>
+<button onclick="selectAllItems()" style="padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Select All</button>
+<button onclick="clearAllItems()" style="padding: 8px 16px; background: #6B7280; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Clear All</button>
+<button onclick="closeItemsModal()" style="padding: 8px 16px; background: #6B7280; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 0 4px; font-size: 12px;">Cancel</button>
+</div>
+</div>
+</div>
+<script>
         // Items data from CSV with actual expected quantities
         const itemsData = {"Licores": ["JACK AND COKE", "TEQUILA 7 LEGUAS BLANCO", "TEQUILA 7 LEGUAS REPOSADO", "TEQUILA 7 LEGUAS AÑEJO", "RREY KOLSCH 273ML", "RREY LONDON 273ML", "COLIMITA", "CAYACO", "VINO BLANCO CRIA CUERVOS", "VINO TINTO CRIA CUERVOS", "AMSTEL ULTRA", "HEINEKEN ORIGINAL", "XX LAGER", "TECATE LIGHT", "TECATE ROJA 355 ML", "SOL CLAMATO", "INDIO", "RON BACARDI", "VODKA TITOS", "JACK DANIELS 50ML", "CORAJILLO", "CORAJILLO BAILEYS", "VINO TINTO SCIELO MX 187", "VINO ROSADO SCIELO MX 187"], "Lacteos": ["LECHE DE CHOCOLATE SC", "LECHE DE FRESA SC"], "Bebidas Calientes": ["CAPPUCHINO ORIGINAL", "CAPPUCHINO MOKA", "TE MANZANILLA JENGIBRE", "TE FRUTOS ROJOS", "CAFE COSTA"], "Botanas": ["NISHIKAWA JAPONES", "NISHIKAWA SALADO", "NUTTY BERRY MIX", "LUXURY NUT MIX", "SALSA BOTANERA", "CHIPS JICAMA ENCHILADA", "CHIPS PLATANO NATURAL", "ARANDANO MANGO MIX", "FRUTOS SECOS ENCHILADOS", "DORITOS NACHO", "RUFFLES QUESO", "SABRITAS ORIGINALES", "FRITOS LIMON Y SAL", "CHEETOS", "CHURRUMAIS", "SABRITAS FLAMIN HOT", "CHEETOS FLAMIN HOT", "ATE CON CHILE", "NUEZ CARAMELO", "CARNE SECA ORIGINAL", "CARNE SECA HABANERO", "VEGGIE CHIPS CHIPOTLE", "VEGGIE SAL HIMALAYA"], "Refrescos": ["WAYU FLOR DE JAMAICA", "WAYU BLUEBERRY", "COCA SIN AZUCAR", "AGUA NATURAL 600 ML", "CIEL MINERALIZADA", "JUGO DE MANZANA", "JUGO DE MANGO", "COCA COLA DIETA", "COCA COLA REGULAR", "FRESCA", "SIDRAL MUNDET", "SPRITE", "FANTA DE NARANJA"], "Sopas": ["CHICHARAMEN PICANTE", "CHICHARAMEN CLASICO", "NISSIN PICANTE", "NISSIN DARK DRAGON", "NISSIN RES"], "Galletas": ["EMPERADOR CHOCOLATE", "QUAKER AVENA FRUTOS ROJOS", "CHOKIS", "ARCOIRIS", "MUFFIN CHOCOLATE"], "Perecederos": ["CUERNO CLASICO DE PAVO", "PANINI CLASICO", "PANINI INTEGRAL"], "Extras": ["HIELO 1KG"], "VIVA PLAY": ["VIVAPLAY"]};
         

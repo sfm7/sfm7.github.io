@@ -216,6 +216,14 @@ img { max-width: 100%; height: auto; }
 <div>
 <div class="barcode" id="barcode"></div>
 <div class="qrcode" id="qrcode" style="margin-top:8px;"></div>
+<div style="margin-top:8px; text-align:center;">
+<button onclick="toggleTextQR()" class="no-print" style="padding:4px 8px; font-size:10px; border:1px solid #D1D5DB; border-radius:4px; background:#F9FAFB; cursor:pointer;">Text QR</button>
+<div id="textQrWrap" style="display:none; margin-top:6px;">
+<textarea id="textQrCode" readonly style="font-family:monospace; font-size:4px; line-height:4px; letter-spacing:1px; width:auto; min-width:120px; resize:none; border:1px solid #D1D5DB; border-radius:4px; padding:4px; background:#fff; white-space:pre; overflow:hidden;"></textarea>
+<br/>
+<button onclick="copyTextQR()" class="no-print" style="padding:2px 8px; font-size:10px; border:1px solid #D1D5DB; border-radius:4px; background:#F9FAFB; cursor:pointer; margin-top:4px;">Copy</button>
+</div>
+</div>
 </div>
 </div>
 <div class="grid">
@@ -648,6 +656,64 @@ img { max-width: 100%; height: auto; }
       }, 1000);
     }
     
+    // Generate text-based QR code using Unicode block characters
+    function generateTextQR() {
+      const qrData = JSON.stringify({
+        shipment_id: document.getElementById('otm_shipment_id').value || 'OTM-123456',
+        delivery_slip: document.getElementById('delivery_slip_number').value || 'DS-0001',
+        flight: document.getElementById('flight_number').value || 'SA123',
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      QRCode.toDataURL(document.createElement('canvas'), qrData, {
+        width: 200,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      }, function() {});
+
+      // Use the toString method to get a text representation
+      QRCode.create(qrData, { errorCorrectionLevel: 'M' }, function(err, qr) {});
+
+      // Generate via the matrix approach
+      var opts = { errorCorrectionLevel: 'M' };
+      var segments = QRCode.create(qrData, opts);
+      var modules = segments.modules;
+      var size = modules.size;
+      var data = modules.data;
+      var lines = [];
+      for (var y = 0; y < size; y++) {
+        var line = '';
+        for (var x = 0; x < size; x++) {
+          line += data[y * size + x] ? '\u2588\u2588' : '  ';
+        }
+        lines.push(line);
+      }
+      var textQR = lines.join('\n');
+      var textarea = document.getElementById('textQrCode');
+      textarea.value = textQR;
+      textarea.rows = size;
+      textarea.cols = size * 2;
+    }
+
+    function toggleTextQR() {
+      var wrap = document.getElementById('textQrWrap');
+      if (wrap.style.display === 'none') {
+        wrap.style.display = 'block';
+        generateTextQR();
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    function copyTextQR() {
+      var textarea = document.getElementById('textQrCode');
+      textarea.select();
+      document.execCommand('copy');
+      var btn = event.target;
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    }
+
     // Generate codes when page loads and when key fields change
     document.addEventListener('DOMContentLoaded', generateCodes);
     document.getElementById('otm_shipment_id').addEventListener('input', generateCodes);

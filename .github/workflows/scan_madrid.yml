@@ -39,6 +39,11 @@ jobs:
           IDEALISTA_API_KEY: ${{ secrets.IDEALISTA_API_KEY }}
           IDEALISTA_SECRET:  ${{ secrets.IDEALISTA_SECRET }}
           DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          # Slack notifications (optional — add SLACK_WEBHOOK_URL as a repo secret)
+          SLACK_WEBHOOK_URL:    ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_NEW_THRESHOLD:  ${{ vars.SLACK_NEW_THRESHOLD  || '2' }}
+          SLACK_DROP_THRESHOLD: ${{ vars.SLACK_DROP_THRESHOLD || '1' }}
+          DASHBOARD_URL:        ${{ vars.DASHBOARD_URL || 'https://sfm7.github.io/madrid-tracker/dashboard/' }}
           # Optional scan parameters (set as repo secrets or vars to override)
           OPERATION:         ${{ vars.SCAN_OPERATION || 'sale' }}
           PROPERTY_TYPE:     ${{ vars.SCAN_PROPERTY_TYPE || 'homes' }}

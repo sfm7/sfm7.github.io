@@ -20,6 +20,13 @@ Optional:
     MIN_SIZE              - Minimum size m2          (default: none)
     OPERATION             - sale | rent              (default: sale)
     PROPERTY_TYPE         - homes | offices | premises | garages | bedrooms | newDevelopments (default: homes)
+
+Slack notifications (optional):
+    SLACK_WEBHOOK_URL     - Incoming webhook URL from your Slack app
+    SLACK_NEW_THRESHOLD   - Min new listings to trigger a notification (default: 2)
+    SLACK_DROP_THRESHOLD  - Min price drops to trigger a notification (default: 1)
+    DASHBOARD_URL         - Your dashboard URL included in the message
+                           (default: https://sfm7.github.io/madrid-tracker/dashboard/)
 """
 
 import os
@@ -257,6 +264,169 @@ def upsert_property(cur, prop: dict) -> tuple[bool, bool]:
     return is_new, price_changed
 
 
+# ── Slack notifications ────────────────────────────────────────────────────────
+DASHBOARD_URL = os.getenv(
+    "DASHBOARD_URL",
+    "https://sfm7.github.io/madrid-tracker/dashboard/",
+)
+
+
+def _fmt_price(price) -> str:
+    if price is None:
+        return "—"
+    return f"€{int(price):,}".replace(",", ".")
+
+
+def _property_block(prop: dict) -> dict:
+    """Build a Slack Block Kit section for one property."""
+    price     = prop.get("price")
+    size      = prop.get("size")
+    rooms     = prop.get("rooms")
+    baths     = prop.get("bathrooms")
+    district  = prop.get("district") or prop.get("municipality") or ""
+    address   = prop.get("address") or ""
+    url       = prop.get("url") or "#"
+    thumbnail = prop.get("thumbnail")
+
+    price_sqm = f"  ·  €{int(price/size):,}/m²".replace(",", ".") if price and size else ""
+    specs = "  ·  ".join(filter(None, [
+        f"🛏 {rooms}" if rooms else None,
+        f"🚿 {baths}" if baths else None,
+        f"📐 {size}m²" if size else None,
+    ]))
+
+    text = (
+        f"*{_fmt_price(price)}*{price_sqm}\n"
+        f"📍 {address}{f'  ·  {district}' if district else ''}\n"
+        f"{specs}\n"
+        f"<{url}|View on Idealista →>"
+    )
+
+    block: dict = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": text},
+    }
+    if thumbnail:
+        block["accessory"] = {
+            "type": "image",
+            "image_url": thumbnail,
+            "alt_text": address or "property",
+        }
+    return block
+
+
+def notify_slack(
+    new_props: list[dict],
+    price_drop_props: list[dict],
+    total_found: int,
+    duration: float,
+) -> None:
+    """
+    Send a Slack notification via incoming webhook.
+
+    Fires only when:
+      - new_props count >= SLACK_NEW_THRESHOLD (default 2), OR
+      - price_drop_props count >= SLACK_DROP_THRESHOLD (default 1)
+    """
+    webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+    if not webhook_url:
+        log.debug("SLACK_WEBHOOK_URL not set — skipping notification")
+        return
+
+    new_threshold  = int(os.getenv("SLACK_NEW_THRESHOLD",  "2"))
+    drop_threshold = int(os.getenv("SLACK_DROP_THRESHOLD", "1"))
+
+    has_new   = len(new_props)  >= new_threshold
+    has_drops = len(price_drop_props) >= drop_threshold
+
+    if not has_new and not has_drops:
+        log.info(
+            f"Slack: {len(new_props)} new (threshold {new_threshold}), "
+            f"{len(price_drop_props)} drops (threshold {drop_threshold}) — skipping"
+        )
+        return
+
+    blocks = []
+
+    # ── New listings section ──────────────────────────────────────────────
+    if has_new:
+        n = len(new_props)
+        blocks.append({
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"🏠 {n} new Madrid listing{'s' if n != 1 else ''} found",
+                "emoji": True,
+            },
+        })
+        blocks.append({"type": "divider"})
+
+        show_props = new_props[:4]   # max 4 cards per message
+        for prop in show_props:
+            blocks.append(_property_block(prop))
+            blocks.append({"type": "divider"})
+
+        if n > len(show_props):
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"_… and *{n - len(show_props)} more*. Open the dashboard to see all._",
+                },
+            })
+
+    # ── Price drops section ───────────────────────────────────────────────
+    if has_drops:
+        nd = len(price_drop_props)
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*📉 {nd} price drop{'s' if nd != 1 else ''}*",
+            },
+        })
+        blocks.append({"type": "divider"})
+
+        for prop in price_drop_props[:3]:   # max 3 drops
+            old_price = prop.get("_old_price")
+            new_price = prop.get("price")
+            drop_pct  = (
+                round((new_price - old_price) / old_price * 100, 1)
+                if old_price and new_price else None
+            )
+            drop_line = (
+                f"  ·  ~~{_fmt_price(old_price)}~~ → *{_fmt_price(new_price)}*"
+                f"  `{drop_pct:+.1f}%`" if drop_pct else ""
+            )
+            block = _property_block(prop)
+            # prepend drop info to text
+            block["text"]["text"] = drop_line + "\n" + block["text"]["text"]
+            blocks.append(block)
+            blocks.append({"type": "divider"})
+
+    # ── Footer ────────────────────────────────────────────────────────────
+    blocks.append({
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": (
+                    f"Scanned {total_found} listings in {duration}s  ·  "
+                    f"<{DASHBOARD_URL}|Open dashboard →>"
+                ),
+            }
+        ],
+    })
+
+    payload = {"blocks": blocks}
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+        resp.raise_for_status()
+        log.info("Slack notification sent")
+    except Exception as exc:
+        log.warning(f"Slack notification failed: {exc}")
+
+
 def mark_gone_properties(cur, seen_codes: set[str]) -> int:
     """Mark properties not seen in this scan as inactive."""
     if not seen_codes:
@@ -287,6 +457,8 @@ def main():
     scan_status = "success"
     error_msg: Optional[str] = None
     new_count = price_change_count = removed_count = total_found = 0
+    new_props:        list[dict] = []   # full dicts of new listings (for Slack)
+    price_drop_props: list[dict] = []   # full dicts of price-dropped listings
 
     try:
         token = get_access_token(api_key, secret)
@@ -304,10 +476,26 @@ def main():
                 if not code:
                     continue
                 seen_codes.add(code)
+
+                # Capture old price before upsert (for drop tracking)
+                cur.execute(
+                    "SELECT price FROM properties WHERE property_code = %s", (code,)
+                )
+                row = cur.fetchone()
+                old_price = row["price"] if row else None
+
                 is_new, price_changed = upsert_property(cur, prop)
+
                 if is_new:
                     new_count += 1
+                    new_props.append(prop)
                     log.info(f"  [NEW] {code} - {prop.get('district')} - {prop.get('price')}€")
+                elif price_changed and old_price and prop.get("price") < old_price:
+                    price_change_count += 1
+                    drop_prop = dict(prop)
+                    drop_prop["_old_price"] = old_price
+                    price_drop_props.append(drop_prop)
+                    log.info(f"  [PRICE DROP] {code} {old_price}€ → {prop.get('price')}€")
                 elif price_changed:
                     price_change_count += 1
                     log.info(f"  [PRICE CHANGE] {code} -> {prop.get('price')}€")
@@ -354,6 +542,9 @@ def main():
         f"total={total_found} new={new_count} price_changes={price_change_count} "
         f"removed={removed_count} status={scan_status}"
     )
+
+    # Send Slack notification (only fires when thresholds are met)
+    notify_slack(new_props, price_drop_props, total_found, duration)
 
     if scan_status == "error":
         raise SystemExit(1)

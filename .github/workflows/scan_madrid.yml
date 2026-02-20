@@ -1,0 +1,59 @@
+name: Madrid Property Scanner
+
+on:
+  # Run automatically every 4 hours
+  schedule:
+    - cron: "0 */4 * * *"
+
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual scan"
+        required: false
+        default: "Manual trigger"
+
+jobs:
+  scan:
+    name: Scan Idealista Madrid
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: madrid-tracker/scanner/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r madrid-tracker/scanner/requirements.txt
+
+      - name: Run scanner
+        working-directory: madrid-tracker/scanner
+        env:
+          IDEALISTA_API_KEY: ${{ secrets.IDEALISTA_API_KEY }}
+          IDEALISTA_SECRET:  ${{ secrets.IDEALISTA_SECRET }}
+          DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          # Optional scan parameters (set as repo secrets or vars to override)
+          OPERATION:         ${{ vars.SCAN_OPERATION || 'sale' }}
+          PROPERTY_TYPE:     ${{ vars.SCAN_PROPERTY_TYPE || 'homes' }}
+          SCAN_DISTANCE_KM:  ${{ vars.SCAN_DISTANCE_KM || '15' }}
+          MIN_PRICE:         ${{ vars.SCAN_MIN_PRICE }}
+          MAX_PRICE:         ${{ vars.SCAN_MAX_PRICE }}
+          MIN_ROOMS:         ${{ vars.SCAN_MIN_ROOMS }}
+          MIN_SIZE:          ${{ vars.SCAN_MIN_SIZE }}
+        run: python scanner.py
+
+      - name: Upload scan log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-failure-log
+          path: |
+            madrid-tracker/scanner/*.log
+          retention-days: 7

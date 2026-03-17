@@ -1,0 +1,48 @@
+name: Code Review Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-html:
+    name: Validate HTML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check HTML syntax
+        uses: anishathalye/proof-html@v2
+        with:
+          directory: .
+          check_html: true
+          check_img_http: true
+
+  check-links:
+    name: Check external links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify no broken links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress "*.html"
+          fail: false
+
+  file-size:
+    name: Check file sizes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warn on large files
+        run: |
+          echo "Checking for files larger than 1MB..."
+          large_files=$(find . -type f -size +1M -not -path './.git/*')
+          if [ -n "$large_files" ]; then
+            echo "::warning::Large files detected:"
+            echo "$large_files"
+          else
+            echo "No large files found."
+          fi

@@ -277,101 +277,138 @@
 <!-- ── Script ───────────────────────────────────────────────────────────── -->
 <script>
 // ┌────────────────────────────────────────────────────────────────────────┐
-// │  CONFIGURATION — set your API base URL here                            │
+// │  CONFIGURATION — Static JSON mode (GitHub Pages, no API needed)        │
 // └────────────────────────────────────────────────────────────────────────┘
-const API_BASE = "https://YOUR-RAILWAY-APP.railway.app";
-// Example: "https://madrid-tracker-api.railway.app"
+const DATA_BASE = "data";  // relative path to JSON files
 
 // ── State ─────────────────────────────────────────────────────────────────
+let allProperties = [];   // full dataset loaded once
 let currentPage   = 1;
 let currentTab    = "all";
 let activeView    = "list";
 let leafletMap    = null;
 let mapMarkers    = [];
 let priceCharts   = {};
+const PAGE_SIZE   = 20;
+
+// ── localStorage helpers for saved/viewed/notes ──────────────────────────
+function getLocal(key) {
+  try { return JSON.parse(localStorage.getItem("mt_" + key) || "{}"); } catch { return {}; }
+}
+function setLocal(key, val) {
+  localStorage.setItem("mt_" + key, JSON.stringify(val));
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────
 (async function init() {
-  await loadStats();
-  await loadProperties(1);
+  try {
+    const [statsRes, propsRes] = await Promise.all([
+      fetch(`${DATA_BASE}/stats.json`).then(r => r.json()),
+      fetch(`${DATA_BASE}/properties.json`).then(r => r.json()),
+    ]);
+    allProperties = propsRes;
+    renderStats(statsRes);
+    loadProperties(1);
+  } catch (e) {
+    console.error("Init error:", e);
+    toast("Failed to load data. Make sure data/*.json files exist.");
+  }
 })();
 
 // ── Stats ─────────────────────────────────────────────────────────────────
-async function loadStats() {
-  try {
-    const data = await api("/stats");
-    const k = data.kpis;
-    setText("kpi-total",   fmt(k.active_total));
-    setText("kpi-new",     fmt(k.new_48h));
-    setText("kpi-unviewed",fmt(k.unviewed));
-    setText("kpi-saved",   fmt(k.saved));
-    setText("kpi-drops",   fmt(data.price_drops));
-    setText("kpi-avg-sqm", k.avg_price_sqm ? "€" + Math.round(k.avg_price_sqm) : "—");
+function renderStats(data) {
+  const k = data.kpis;
+  const savedMap = getLocal("saved");
+  const viewedMap = getLocal("viewed");
+  const savedCount = Object.values(savedMap).filter(Boolean).length;
+  const viewedCount = Object.values(viewedMap).filter(Boolean).length;
 
-    // Populate district dropdown
-    const sel = document.getElementById("f-district");
-    data.by_district.forEach(d => {
-      if (!d.district) return;
-      const opt = document.createElement("option");
-      opt.value = d.district;
-      opt.textContent = `${d.district} (${d.count})`;
-      sel.appendChild(opt);
-    });
+  setText("kpi-total",   fmt(k.active_total));
+  setText("kpi-new",     fmt(k.new_48h));
+  setText("kpi-unviewed",fmt(Math.max(0, (k.active_total || 0) - viewedCount)));
+  setText("kpi-saved",   fmt(savedCount));
+  setText("kpi-drops",   fmt(data.price_drops));
+  setText("kpi-avg-sqm", k.avg_price_sqm ? "€" + Math.round(k.avg_price_sqm) : "—");
 
-    // Last scan
-    if (data.last_scan) {
-      const dt = new Date(data.last_scan.scanned_at);
-      document.getElementById("last-scan-label").textContent =
-        `Last scan: ${timeAgo(dt)}  •  ${data.last_scan.new_properties} new  •  ${data.last_scan.price_changes} price changes`;
-    }
-  } catch (e) {
-    console.error("Stats error:", e);
+  // Populate district dropdown
+  const sel = document.getElementById("f-district");
+  data.by_district.forEach(d => {
+    if (!d.district) return;
+    const opt = document.createElement("option");
+    opt.value = d.district;
+    opt.textContent = `${d.district} (${d.count})`;
+    sel.appendChild(opt);
+  });
+
+  // Last scan
+  if (data.last_scan) {
+    const dt = new Date(data.last_scan.scanned_at);
+    document.getElementById("last-scan-label").textContent =
+      `Last scan: ${timeAgo(dt)}  •  ${data.last_scan.new_properties} new  •  ${data.last_scan.price_changes} price changes`;
   }
 }
 
-// ── Properties ────────────────────────────────────────────────────────────
-async function loadProperties(page = 1) {
+// ── Properties (client-side filtering + pagination) ──────────────────────
+function loadProperties(page = 1) {
   currentPage = page;
   showLoading(true);
 
-  const params = buildParams(page);
-  try {
-    const data = await api("/properties?" + new URLSearchParams(params));
-    renderCards(data.data);
-    renderPagination(data.page, data.pages, data.total);
-    if (activeView === "map") renderMap(data.data);
-  } catch (e) {
-    console.error("Properties error:", e);
-    toast("Failed to load properties. Check API_BASE configuration.");
-  } finally {
-    showLoading(false);
-  }
+  const filtered = filterProperties();
+  const sorted   = sortProperties(filtered);
+  const total    = sorted.length;
+  const pages    = Math.ceil(total / PAGE_SIZE) || 1;
+  const start    = (page - 1) * PAGE_SIZE;
+  const pageData = sorted.slice(start, start + PAGE_SIZE);
+
+  // Merge localStorage state into each property for display
+  const savedMap  = getLocal("saved");
+  const viewedMap = getLocal("viewed");
+  pageData.forEach(p => {
+    p.saved  = !!savedMap[p.property_code];
+    p.viewed = !!viewedMap[p.property_code];
+  });
+
+  renderCards(pageData);
+  renderPagination(page, pages, total);
+  if (activeView === "map") renderMap(pageData);
+  showLoading(false);
 }
 
-function buildParams(page) {
-  const p = {
-    page,
-    page_size: 20,
-    sort: document.getElementById("f-sort").value,
-    order: "desc",
-  };
-  const district  = document.getElementById("f-district").value;
-  const minPrice  = document.getElementById("f-min-price").value;
-  const maxPrice  = document.getElementById("f-max-price").value;
-  const rooms     = document.getElementById("f-rooms").value;
+function filterProperties() {
+  const district = document.getElementById("f-district").value.toLowerCase();
+  const minPrice = parseFloat(document.getElementById("f-min-price").value) || 0;
+  const maxPrice = parseFloat(document.getElementById("f-max-price").value) || Infinity;
+  const rooms    = parseInt(document.getElementById("f-rooms").value) || 0;
+  const savedMap  = getLocal("saved");
+  const viewedMap = getLocal("viewed");
 
-  if (district)  p.district  = district;
-  if (minPrice)  p.min_price = minPrice;
-  if (maxPrice)  p.max_price = maxPrice;
-  if (rooms)     p.min_rooms = rooms;
+  return allProperties.filter(p => {
+    if (district && (!p.district || !p.district.toLowerCase().includes(district))) return false;
+    if (p.price < minPrice) return false;
+    if (p.price > maxPrice) return false;
+    if (rooms && (!p.rooms || p.rooms < rooms)) return false;
 
-  // Tab overrides
-  if (currentTab === "new")    p.new_only = true;
-  if (currentTab === "saved")  p.saved    = true;
-  if (currentTab === "drop")   p.price_drop = true;
-  if (currentTab === "unseen") p.viewed   = false;
+    if (currentTab === "new"    && !isNewProperty(p.first_seen_at)) return false;
+    if (currentTab === "saved"  && !savedMap[p.property_code]) return false;
+    if (currentTab === "drop"   && !(p.initial_price && p.price < p.initial_price)) return false;
+    if (currentTab === "unseen" && viewedMap[p.property_code]) return false;
 
-  return p;
+    return true;
+  });
+}
+
+function sortProperties(list) {
+  const sortKey = document.getElementById("f-sort").value;
+  return [...list].sort((a, b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (sortKey === "first_seen_at") {
+      va = va ? new Date(va).getTime() : 0;
+      vb = vb ? new Date(vb).getTime() : 0;
+    }
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return vb - va;  // descending
+  });
 }
 
 // ── Card Rendering ────────────────────────────────────────────────────────
@@ -505,9 +542,15 @@ async function openDrawer(code) {
   document.getElementById("drawer").classList.add("open");
 
   try {
-    const data = await api(`/properties/${code}`);
-    const p    = data.property;
-    const hist = data.price_history;
+    const p    = allProperties.find(x => x.property_code === code);
+    if (!p) throw new Error("Property not found");
+    const hist = p.price_history || [];
+    const savedMap  = getLocal("saved");
+    const viewedMap = getLocal("viewed");
+    const notesMap  = getLocal("notes");
+    p.saved  = !!savedMap[code];
+    p.viewed = !!viewedMap[code];
+    p.notes  = notesMap[code] || "";
 
     document.getElementById("drawer-title").textContent =
       `${p.address || p.district} – ${fmtPrice(p.price)}`;
@@ -665,45 +708,43 @@ function closeDrawer() {
   document.getElementById("drawer-overlay").style.display = "none";
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────
-async function toggleSaved(code, btn) {
-  try {
-    const res = await api(`/properties/${code}/saved`, "PATCH");
-    btn.textContent = res.saved ? "★ Saved" : "☆ Save";
-    btn.className   = res.saved
-      ? "text-xs px-3 py-1 rounded-full border border-blue-400 text-blue-600 bg-blue-50 transition-colors"
-      : "text-xs px-3 py-1 rounded-full border border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-colors";
-    toast(res.saved ? "Saved ★" : "Unsaved");
-  } catch (e) { toast("Error saving property"); }
+// ── Actions (localStorage-based) ──────────────────────────────────────────
+function toggleSaved(code, btn) {
+  const savedMap = getLocal("saved");
+  savedMap[code] = !savedMap[code];
+  setLocal("saved", savedMap);
+  btn.textContent = savedMap[code] ? "★ Saved" : "☆ Save";
+  btn.className   = savedMap[code]
+    ? "text-xs px-3 py-1 rounded-full border border-blue-400 text-blue-600 bg-blue-50 transition-colors"
+    : "text-xs px-3 py-1 rounded-full border border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-colors";
+  toast(savedMap[code] ? "Saved ★" : "Unsaved");
 }
 
-async function toggleSavedDrawer(code, wasSaved) {
-  try {
-    const res = await api(`/properties/${code}/saved`, "PATCH");
-    const btn = document.getElementById(`saved-btn-${code}`);
-    if (btn) btn.textContent = res.saved ? "★ Saved" : "☆ Save";
-    toast(res.saved ? "Saved ★" : "Unsaved");
-  } catch (e) { toast("Error"); }
+function toggleSavedDrawer(code, wasSaved) {
+  const savedMap = getLocal("saved");
+  savedMap[code] = !savedMap[code];
+  setLocal("saved", savedMap);
+  const btn = document.getElementById(`saved-btn-${code}`);
+  if (btn) btn.textContent = savedMap[code] ? "★ Saved" : "☆ Save";
+  toast(savedMap[code] ? "Saved ★" : "Unsaved");
 }
 
-async function markViewed(code) {
-  try { await api(`/properties/${code}/viewed`, "PATCH"); }
-  catch (_) {}
+function markViewed(code) {
+  const viewedMap = getLocal("viewed");
+  viewedMap[code] = true;
+  setLocal("viewed", viewedMap);
 }
 
-async function saveNotes(code) {
+function saveNotes(code) {
   const notes = document.getElementById(`notes-${code}`).value;
-  try {
-    await api(`/properties/${code}/notes`, "PATCH", { notes });
-    toast("Notes saved");
-  } catch (e) { toast("Error saving notes"); }
+  const notesMap = getLocal("notes");
+  notesMap[code] = notes;
+  setLocal("notes", notesMap);
+  toast("Notes saved");
 }
 
-async function triggerScan() {
-  try {
-    await api("/scan/trigger", "POST");
-    toast("Scan started — check back in a few minutes");
-  } catch (e) { toast("Could not trigger scan"); }
+function triggerScan() {
+  toast("Scans run automatically daily at 8:00 UTC");
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -770,14 +811,6 @@ function resetFilters() {
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────
-async function api(path, method = "GET", body = null) {
-  const opts = { method, headers: { "Content-Type": "application/json" } };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API_BASE + path, opts);
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  return res.json();
-}
-
 function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;

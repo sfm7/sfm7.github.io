@@ -1,0 +1,58 @@
+name: Madrid Property Scanner
+
+on:
+  # Run once per day at 8:00 UTC
+  schedule:
+    - cron: "0 8 * * *"
+
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual scan"
+        required: false
+        default: "Manual trigger"
+
+jobs:
+  scan:
+    name: Scan Idealista Madrid (Apify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: madrid-tracker/scanner/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r madrid-tracker/scanner/requirements.txt
+
+      - name: Run scanner
+        working-directory: madrid-tracker/scanner
+        env:
+          APIFY_API_TOKEN:     ${{ secrets.APIFY_API_TOKEN }}
+          DATABASE_URL:        ${{ secrets.DATABASE_URL }}
+          # Slack notifications (optional — add SLACK_WEBHOOK_URL as a repo secret)
+          SLACK_WEBHOOK_URL:    ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_NEW_THRESHOLD:  ${{ vars.SLACK_NEW_THRESHOLD  || '2' }}
+          SLACK_DROP_THRESHOLD: ${{ vars.SLACK_DROP_THRESHOLD || '1' }}
+          DASHBOARD_URL:        ${{ vars.DASHBOARD_URL || 'https://sfm7.github.io/madrid-tracker/dashboard/' }}
+          # Optional scan parameters (set as repo vars to override)
+          SEARCH_URL:          ${{ vars.SEARCH_URL }}
+          MAX_ITEMS:           ${{ vars.MAX_ITEMS || '200' }}
+        run: python scanner.py
+
+      - name: Upload scan log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-failure-log
+          path: |
+            madrid-tracker/scanner/*.log
+          retention-days: 7

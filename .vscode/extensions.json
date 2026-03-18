@@ -1,0 +1,31 @@
+{
+  "recommendations": [
+    // Python
+    "ms-python.python",
+    "ms-python.pylance",
+    "ms-python.autopep8",
+
+    // REST / API testing
+    "humao.rest-client",
+
+    // Database
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+
+    // HTML / Frontend
+    "ritwickdey.liveserver",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+
+    // Git
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // General productivity
+    "usernamehw.errorlens",
+    "streetsidesoftware.code-spell-checker",
+    "christian-kohler.path-intellisense",
+    "pkief.material-icon-theme",
+    "zhuangtongfa.material-theme"
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  // --- Python ---
+  "python.defaultInterpreterPath": "${workspaceFolder}/madrid-tracker/api/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.autopep8",
+    "editor.tabSize": 4
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/madrid-tracker/api",
+    "${workspaceFolder}/madrid-tracker/scanner"
+  ],
+
+  // --- Editor ---
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "editor.rulers": [88],
+  "editor.wordWrap": "off",
+  "editor.minimap.enabled": false,
+
+  // --- Files ---
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.venv": true,
+    "**/.DS_Store": true
+  },
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/__pycache__/**": true
+  },
+  "search.exclude": {
+    "**/.venv": true,
+    "**/__pycache__": true
+  },
+
+  // --- HTML/CSS/JS ---
+  "[html]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.tabSize": 2
+  },
+
+  // --- Terminal ---
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.env.linux": {
+    "PYTHONUNBUFFERED": "1"
+  },
+
+  // --- Git ---
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  // --- Live Server ---
+  "liveServer.settings.port": 5500,
+  "liveServer.settings.donotShowInfoMsg": true,
+
+  // --- SQLTools ---
+  "sqltools.connections": [
+    {
+      "name": "Neon — Madrid Tracker",
+      "driver": "PostgreSQL",
+      "previewLimit": 50,
+      "server": "YOUR_NEON_HOST.neon.tech",
+      "port": 5432,
+      "database": "YOUR_DB_NAME",
+      "username": "YOUR_USER",
+      "password": "",
+      "ssl": true
+    }
+  ]
+}

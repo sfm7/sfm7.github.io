@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI — Madrid Tracker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/madrid-tracker/api",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "envFile": "${workspaceFolder}/madrid-tracker/api/.env",
+      "python": "${workspaceFolder}/madrid-tracker/api/.venv/bin/python",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Scanner — Run Once",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/madrid-tracker/scanner/scanner.py",
+      "cwd": "${workspaceFolder}/madrid-tracker/scanner",
+      "envFile": "${workspaceFolder}/madrid-tracker/scanner/.env",
+      "python": "${workspaceFolder}/madrid-tracker/scanner/.venv/bin/python",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

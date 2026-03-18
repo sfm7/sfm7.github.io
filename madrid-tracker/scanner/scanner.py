@@ -1,25 +1,19 @@
 """
-Madrid Property Tracker - Idealista Scanner
-============================================
-Authenticates with Idealista OAuth2, scans for Madrid properties,
+Madrid Property Tracker - Apify Idealista Scanner
+==================================================
+Uses an Apify actor to scrape Idealista listings for Madrid,
 detects new listings and price changes, and persists everything to Neon.
 
 Environment variables required:
-    IDEALISTA_API_KEY     - Your Idealista API key (client_id)
-    IDEALISTA_SECRET      - Your Idealista API secret (client_secret)
+    APIFY_API_TOKEN       - Your Apify API token (from console.apify.com)
     DATABASE_URL          - Neon PostgreSQL connection string
                            (postgresql://user:pass@host/dbname?sslmode=require)
 
 Optional:
-    SCAN_CENTER_LAT       - Search center latitude  (default: 40.4168 = Madrid)
-    SCAN_CENTER_LON       - Search center longitude (default: -3.7038 = Madrid)
-    SCAN_DISTANCE_KM      - Radius in km            (default: 15)
-    MIN_PRICE             - Minimum price filter     (default: none)
-    MAX_PRICE             - Maximum price filter     (default: none)
-    MIN_ROOMS             - Minimum rooms            (default: none)
-    MIN_SIZE              - Minimum size m2          (default: none)
-    OPERATION             - sale | rent              (default: sale)
-    PROPERTY_TYPE         - homes | offices | premises | garages | bedrooms | newDevelopments (default: homes)
+    APIFY_ACTOR           - Apify actor ID (default: igolaizola/idealista-scraper)
+    SEARCH_URL            - Idealista search URL to scrape
+                           (default: https://www.idealista.com/venta-viviendas/madrid-madrid/)
+    MAX_ITEMS             - Maximum listings to fetch (default: 200)
 
 Slack notifications (optional):
     SLACK_WEBHOOK_URL     - Incoming webhook URL from your Slack app
@@ -31,13 +25,16 @@ Slack notifications (optional):
 
 import os
 import time
-import base64
 import logging
 import requests
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timezone
 from typing import Optional
+from dotenv import load_dotenv
+from apify_client import ApifyClient
+
+load_dotenv()
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -48,82 +45,93 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-IDEALISTA_TOKEN_URL = "https://api.idealista.com/oauth/token"
-IDEALISTA_SEARCH_URL = "https://api.idealista.com/3.5/es/search"
-MAX_PAGES = 20          # Idealista caps results; each page has up to 50 items
-PAGE_SIZE = 50
-RATE_LIMIT_SLEEP = 1.5  # seconds between API calls (be polite)
+DEFAULT_ACTOR = "memo23/idealista-scraper"
+DEFAULT_SEARCH_URL = "https://www.idealista.com/venta-viviendas/madrid-madrid/"
+DEFAULT_MAX_ITEMS = 200
 
 
-# ── Idealista OAuth2 ───────────────────────────────────────────────────────────
-def get_access_token(api_key: str, secret: str) -> str:
-    """Exchange client credentials for a Bearer token."""
-    credentials = base64.b64encode(f"{api_key}:{secret}".encode()).decode()
-    headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+# ── Apify Scraper ─────────────────────────────────────────────────────────────
+def fetch_all_properties(api_token: str) -> list[dict]:
+    """Run the Apify Idealista actor and return all scraped listings."""
+    client = ApifyClient(api_token)
+    actor_id = os.getenv("APIFY_ACTOR", DEFAULT_ACTOR)
+    search_url = os.getenv("SEARCH_URL", DEFAULT_SEARCH_URL)
+    max_items = int(os.getenv("MAX_ITEMS", str(DEFAULT_MAX_ITEMS)))
+
+    run_input = {
+        "startUrls": [{"url": search_url}],
+        "maxItems": max_items,
     }
-    resp = requests.post(
-        IDEALISTA_TOKEN_URL,
-        headers=headers,
-        data={"grant_type": "client_credentials", "scope": "read"},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    token = resp.json().get("access_token")
-    if not token:
-        raise ValueError(f"No access_token in response: {resp.json()}")
-    log.info("Obtained Idealista access token")
-    return token
+
+    log.info(f"Starting Apify actor '{actor_id}' for URL: {search_url}")
+    log.info(f"Max items: {max_items}")
+
+    run = client.actor(actor_id).call(run_input=run_input)
+    log.info(f"Actor run finished (status: {run.get('status')})")
+
+    items = []
+    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+        items.append(item)
+
+    log.info(f"Retrieved {len(items)} listings from Apify")
+    return items
 
 
-# ── Idealista Search ───────────────────────────────────────────────────────────
-def search_properties(token: str, page: int = 1) -> dict:
-    """Search Madrid properties for a given page."""
-    params = {
-        "country": "es",
-        "language": "es",
-        "maxItems": PAGE_SIZE,
-        "numPage": page,
-        "operation": os.getenv("OPERATION", "sale"),
-        "propertyType": os.getenv("PROPERTY_TYPE", "homes"),
-        "center": f"{os.getenv('SCAN_CENTER_LAT', '40.4168')},{os.getenv('SCAN_CENTER_LON', '-3.7038')}",
-        "distance": int(float(os.getenv("SCAN_DISTANCE_KM", "15")) * 1000),  # metres
-        "sort": "publicationDate",
-        "order": "desc",
+# ── Normalize Apify output to our schema ──────────────────────────────────────
+def normalize_property(raw: dict) -> dict:
+    """
+    Map memo23/idealista-scraper output to our internal property schema.
+    The actor returns nested objects: basicInfo, ubication, moreCharacteristics, etc.
+    """
+    basic = raw.get("basicInfo", {}) or {}
+    location = raw.get("ubication", {}) or {}
+    chars = raw.get("moreCharacteristics", {}) or {}
+    contact = raw.get("contactInfo", {}) or {}
+    comments = raw.get("comments", []) or []
+
+    # Extract description from comments
+    description = ""
+    if comments and isinstance(comments, list):
+        description = comments[0].get("propertyComment", "") if comments else ""
+    elif isinstance(comments, str):
+        description = comments
+
+    # Clean URL (remove tracking params)
+    detail_url = raw.get("detailWebLink", "")
+    if detail_url and "?" in detail_url:
+        detail_url = detail_url.split("?")[0]
+
+    return {
+        "propertyCode": str(raw.get("adid", basic.get("propertyCode", ""))),
+        "thumbnail": basic.get("thumbnail"),
+        "numPhotos": basic.get("numPhotos"),
+        "floor": basic.get("floor"),
+        "price": raw.get("price") or basic.get("price"),
+        "currencySuffix": "€",
+        "propertyType": raw.get("propertyType", "homes"),
+        "operation": raw.get("operation", "sale"),
+        "size": chars.get("constructedArea") or chars.get("usableArea"),
+        "rooms": chars.get("roomNumber"),
+        "bathrooms": chars.get("bathNumber"),
+        "address": location.get("title"),
+        "province": location.get("administrativeAreaLevel1"),
+        "municipality": location.get("administrativeAreaLevel2"),
+        "district": location.get("administrativeAreaLevel3"),
+        "country": raw.get("country", "es"),
+        "latitude": location.get("latitude"),
+        "longitude": location.get("longitude"),
+        "description": description,
+        "hasVideo": raw.get("has360VHS", False),
+        "status": chars.get("status"),
+        "features": {
+            "hasAirConditioning": chars.get("airConditioning", False),
+            "hasBoxRoom": chars.get("boxroom", False),
+            "hasSwimmingPool": chars.get("swimmingPool", False),
+            "hasGarden": chars.get("garden", False),
+        },
+        "agencyName": contact.get("commercialName"),
+        "url": detail_url,
     }
-    # Optional filters
-    if os.getenv("MIN_PRICE"):
-        params["minPrice"] = os.getenv("MIN_PRICE")
-    if os.getenv("MAX_PRICE"):
-        params["maxPrice"] = os.getenv("MAX_PRICE")
-    if os.getenv("MIN_ROOMS"):
-        params["minRooms"] = os.getenv("MIN_ROOMS")
-    if os.getenv("MIN_SIZE"):
-        params["minSize"] = os.getenv("MIN_SIZE")
-
-    headers = {"Authorization": f"Bearer {token}"}
-    resp = requests.post(IDEALISTA_SEARCH_URL, headers=headers, params=params, timeout=20)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def fetch_all_properties(token: str) -> list[dict]:
-    """Paginate through all Idealista results."""
-    all_items = []
-    page = 1
-    while page <= MAX_PAGES:
-        log.info(f"Fetching page {page}…")
-        data = search_properties(token, page)
-        items = data.get("elementList", [])
-        all_items.extend(items)
-        total = data.get("total", 0)
-        log.info(f"  Got {len(items)} items (total so far: {len(all_items)} / {total})")
-        if len(all_items) >= total or not items:
-            break
-        page += 1
-        time.sleep(RATE_LIMIT_SLEEP)
-    return all_items
 
 
 # ── Database helpers ───────────────────────────────────────────────────────────
@@ -446,13 +454,12 @@ def mark_gone_properties(cur, seen_codes: set[str]) -> int:
 def main():
     start = time.time()
     log.info("=" * 60)
-    log.info("Madrid Property Tracker - Scanner starting")
+    log.info("Madrid Property Tracker - Apify Scanner starting")
     log.info("=" * 60)
 
-    api_key = os.environ.get("IDEALISTA_API_KEY")
-    secret = os.environ.get("IDEALISTA_SECRET")
-    if not api_key or not secret:
-        raise RuntimeError("IDEALISTA_API_KEY and IDEALISTA_SECRET must be set")
+    api_token = os.environ.get("APIFY_API_TOKEN")
+    if not api_token:
+        raise RuntimeError("APIFY_API_TOKEN must be set")
 
     scan_status = "success"
     error_msg: Optional[str] = None
@@ -461,8 +468,8 @@ def main():
     price_drop_props: list[dict] = []   # full dicts of price-dropped listings
 
     try:
-        token = get_access_token(api_key, secret)
-        properties = fetch_all_properties(token)
+        raw_properties = fetch_all_properties(api_token)
+        properties = [normalize_property(p) for p in raw_properties]
         total_found = len(properties)
         log.info(f"Total properties fetched: {total_found}")
 

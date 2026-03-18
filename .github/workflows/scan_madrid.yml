@@ -1,9 +1,9 @@
 name: Madrid Property Scanner
 
 on:
-  # Run automatically every 4 hours
+  # Run once per day at 8:00 UTC
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 8 * * *"
 
   # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
 
 jobs:
   scan:
-    name: Scan Idealista Madrid
+    name: Scan Idealista Madrid (Apify)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -36,22 +36,16 @@ jobs:
       - name: Run scanner
         working-directory: madrid-tracker/scanner
         env:
-          IDEALISTA_API_KEY: ${{ secrets.IDEALISTA_API_KEY }}
-          IDEALISTA_SECRET:  ${{ secrets.IDEALISTA_SECRET }}
-          DATABASE_URL:      ${{ secrets.DATABASE_URL }}
+          APIFY_API_TOKEN:     ${{ secrets.APIFY_API_TOKEN }}
+          DATABASE_URL:        ${{ secrets.DATABASE_URL }}
           # Slack notifications (optional — add SLACK_WEBHOOK_URL as a repo secret)
           SLACK_WEBHOOK_URL:    ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_NEW_THRESHOLD:  ${{ vars.SLACK_NEW_THRESHOLD  || '2' }}
           SLACK_DROP_THRESHOLD: ${{ vars.SLACK_DROP_THRESHOLD || '1' }}
           DASHBOARD_URL:        ${{ vars.DASHBOARD_URL || 'https://sfm7.github.io/madrid-tracker/dashboard/' }}
-          # Optional scan parameters (set as repo secrets or vars to override)
-          OPERATION:         ${{ vars.SCAN_OPERATION || 'sale' }}
-          PROPERTY_TYPE:     ${{ vars.SCAN_PROPERTY_TYPE || 'homes' }}
-          SCAN_DISTANCE_KM:  ${{ vars.SCAN_DISTANCE_KM || '15' }}
-          MIN_PRICE:         ${{ vars.SCAN_MIN_PRICE }}
-          MAX_PRICE:         ${{ vars.SCAN_MAX_PRICE }}
-          MIN_ROOMS:         ${{ vars.SCAN_MIN_ROOMS }}
-          MIN_SIZE:          ${{ vars.SCAN_MIN_SIZE }}
+          # Optional scan parameters (set as repo vars to override)
+          SEARCH_URL:          ${{ vars.SEARCH_URL }}
+          MAX_ITEMS:           ${{ vars.MAX_ITEMS || '200' }}
         run: python scanner.py
 
       - name: Upload scan log on failure

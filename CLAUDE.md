@@ -14,9 +14,9 @@ This repo contains two independent projects:
 ## Architecture — Madrid Property Tracker
 
 ```
-GitHub Actions (cron every 4h)
+GitHub Actions (cron daily 8:00 UTC)
     └── scanner/scanner.py
-          ├── Calls Idealista API (OAuth2)
+          ├── Runs Apify Idealista scraper actor
           ├── Writes new listings → Neon PostgreSQL
           └── Sends Slack alerts (optional)
 
@@ -37,8 +37,6 @@ GitHub Pages
 ### API (`madrid-tracker/api/.env`)
 ```
 DATABASE_URL=postgresql://user:password@host.neon.tech/dbname?sslmode=require
-IDEALISTA_API_KEY=...
-IDEALISTA_SECRET=...
 CORS_ORIGINS=http://127.0.0.1:5500,https://sfm7.github.io
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...   # optional
 DASHBOARD_URL=https://sfm7.github.io/madrid-tracker/dashboard/index.html
@@ -46,16 +44,16 @@ DASHBOARD_URL=https://sfm7.github.io/madrid-tracker/dashboard/index.html
 
 ### Scanner (`madrid-tracker/scanner/.env`)
 ```
+APIFY_API_TOKEN=apify_api_...
 DATABASE_URL=...
-IDEALISTA_API_KEY=...
-IDEALISTA_SECRET=...
 SLACK_WEBHOOK_URL=...  # optional
+SEARCH_URL=https://www.idealista.com/venta-viviendas/madrid-madrid/  # optional override
+MAX_ITEMS=200  # optional
 ```
 
 ### GitHub Actions Secrets (repo Settings → Secrets)
 ```
-IDEALISTA_API_KEY
-IDEALISTA_SECRET
+APIFY_API_TOKEN
 DATABASE_URL
 SLACK_WEBHOOK_URL   # optional
 ```
@@ -113,7 +111,7 @@ SELECT * FROM scan_logs ORDER BY started_at DESC LIMIT 5;
 |---|---|
 | `madrid-tracker/api/main.py` | FastAPI app — all endpoints |
 | `madrid-tracker/api/database.py` | DB connection pool |
-| `madrid-tracker/scanner/scanner.py` | Idealista scraper + Slack alerts |
+| `madrid-tracker/scanner/scanner.py` | Apify Idealista scraper + Slack alerts |
 | `madrid-tracker/dashboard/index.html` | Frontend (Tailwind + Leaflet + Chart.js) |
 | `setup_db.sql` | DB schema — run once on Neon |
 | `.github/workflows/scan_madrid.yml` | GitHub Actions cron job |
@@ -138,7 +136,7 @@ SELECT * FROM scan_logs ORDER BY started_at DESC LIMIT 5;
 |---|---|---|
 | Dashboard | GitHub Pages | Push to `main` → auto-deploy |
 | API | Railway | Push to `main` → auto-deploy via Procfile |
-| Scanner | GitHub Actions | Runs every 4h or manual trigger |
+| Scanner | GitHub Actions | Runs daily at 8:00 UTC or manual trigger |
 
 ---
 

@@ -450,6 +450,145 @@ def mark_gone_properties(cur, seen_codes: set[str]) -> int:
     return cur.rowcount
 
 
+# ── Static JSON export ─────────────────────────────────────────────────────────
+import json
+from decimal import Decimal
+from pathlib import Path
+
+DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "dashboard" / "data"
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
+
+
+def export_static_json() -> None:
+    """Query the DB and write static JSON files for the GitHub Pages dashboard."""
+    DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # ── properties.json ───────────────────────────────────────────────────
+    cur.execute("""
+        SELECT p.*, ph_first.price AS initial_price
+        FROM properties p
+        LEFT JOIN (
+            SELECT DISTINCT ON (property_code) property_code, price
+            FROM price_history ORDER BY property_code, recorded_at ASC
+        ) ph_first ON ph_first.property_code = p.property_code
+        WHERE p.is_active = TRUE
+        ORDER BY p.first_seen_at DESC
+    """)
+    properties = cur.fetchall()
+
+    # ── price history per property ────────────────────────────────────────
+    cur.execute("""
+        SELECT property_code, price, recorded_at
+        FROM price_history
+        ORDER BY property_code, recorded_at DESC
+    """)
+    history_rows = cur.fetchall()
+    history_map: dict[str, list] = {}
+    for row in history_rows:
+        code = row["property_code"]
+        history_map.setdefault(code, []).append({
+            "price": row["price"],
+            "recorded_at": row["recorded_at"],
+        })
+
+    # ── stats ─────────────────────────────────────────────────────────────
+    cur.execute("""
+        SELECT COUNT(*) AS active_total,
+               COUNT(*) FILTER (WHERE viewed = FALSE) AS unviewed,
+               COUNT(*) FILTER (WHERE saved = TRUE) AS saved,
+               COUNT(*) FILTER (WHERE first_seen_at > NOW() - INTERVAL '48 hours') AS new_48h,
+               ROUND(AVG(price)::numeric, 0) AS avg_price,
+               ROUND(AVG(price_per_sqm)::numeric, 0) AS avg_price_sqm,
+               ROUND(MIN(price)::numeric, 0) AS min_price,
+               ROUND(MAX(price)::numeric, 0) AS max_price
+        FROM properties WHERE is_active = TRUE
+    """)
+    kpis = cur.fetchone()
+
+    cur.execute("""
+        SELECT district, COUNT(*) AS count, ROUND(AVG(price)::numeric, 0) AS avg_price
+        FROM properties WHERE is_active = TRUE AND district IS NOT NULL
+        GROUP BY district ORDER BY count DESC
+    """)
+    by_district = cur.fetchall()
+
+    cur.execute("""
+        SELECT COUNT(*) AS drops FROM v_properties_with_drop
+        WHERE price_change_pct < 0
+    """)
+    price_drops = cur.fetchone()["drops"]
+
+    cur.execute("SELECT * FROM scan_logs ORDER BY scanned_at DESC LIMIT 1")
+    last_scan = cur.fetchone()
+
+    conn.close()
+
+    # ── Write properties.json ─────────────────────────────────────────────
+    props_out = []
+    for p in properties:
+        props_out.append({
+            "property_code": p["property_code"],
+            "address": p["address"],
+            "district": p["district"],
+            "municipality": p["municipality"],
+            "province": p["province"],
+            "price": p["price"],
+            "price_per_sqm": p["price_per_sqm"],
+            "rooms": p["rooms"],
+            "bathrooms": p["bathrooms"],
+            "size": p["size"],
+            "floor": p["floor"],
+            "thumbnail": p["thumbnail"],
+            "url": p["url"],
+            "description": p["description"],
+            "agency_name": p["agency_name"],
+            "latitude": p["latitude"],
+            "longitude": p["longitude"],
+            "has_air_conditioning": p["has_air_conditioning"],
+            "has_swimming_pool": p["has_swimming_pool"],
+            "has_garden": p["has_garden"],
+            "has_box_room": p["has_box_room"],
+            "has_video": p["has_video"],
+            "status": p["status"],
+            "num_photos": p["num_photos"],
+            "is_active": p["is_active"],
+            "first_seen_at": p["first_seen_at"],
+            "last_seen_at": p["last_seen_at"],
+            "initial_price": p["initial_price"],
+            "saved": p["saved"],
+            "viewed": p["viewed"],
+            "notes": p["notes"],
+            "price_history": history_map.get(p["property_code"], []),
+        })
+
+    (DASHBOARD_DIR / "properties.json").write_text(
+        json.dumps(props_out, cls=DecimalEncoder, ensure_ascii=False), encoding="utf-8"
+    )
+    log.info(f"Exported {len(props_out)} properties to properties.json")
+
+    # ── Write stats.json ──────────────────────────────────────────────────
+    stats_out = {
+        "kpis": dict(kpis) if kpis else {},
+        "by_district": [dict(d) for d in by_district],
+        "price_drops": price_drops,
+        "last_scan": dict(last_scan) if last_scan else None,
+    }
+    (DASHBOARD_DIR / "stats.json").write_text(
+        json.dumps(stats_out, cls=DecimalEncoder, ensure_ascii=False), encoding="utf-8"
+    )
+    log.info("Exported stats.json")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     start = time.time()
@@ -552,6 +691,13 @@ def main():
 
     # Send Slack notification (only fires when thresholds are met)
     notify_slack(new_props, price_drop_props, total_found, duration)
+
+    # Export static JSON for GitHub Pages dashboard
+    if scan_status == "success":
+        try:
+            export_static_json()
+        except Exception as exc:
+            log.warning(f"Static JSON export failed: {exc}")
 
     if scan_status == "error":
         raise SystemExit(1)

@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Setup: Install API dependencies",
+      "type": "shell",
+      "command": "cd madrid-tracker/api && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Setup: Install Scanner dependencies",
+      "type": "shell",
+      "command": "cd madrid-tracker/scanner && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Start: FastAPI (port 8000)",
+      "type": "shell",
+      "command": "cd madrid-tracker/api && source .venv/bin/activate && uvicorn main:app --reload --port 8000",
+      "group": "test",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "servers" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: Scanner (one shot)",
+      "type": "shell",
+      "command": "cd madrid-tracker/scanner && source .venv/bin/activate && python scanner.py",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated", "group": "tools" }
+    },
+    {
+      "label": "Git: Push to feature branch",
+      "type": "shell",
+      "command": "git push -u origin $(git rev-parse --abbrev-ref HEAD)",
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

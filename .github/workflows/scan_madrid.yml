@@ -13,6 +13,9 @@ on:
         required: false
         default: "Manual trigger"
 
+permissions:
+  contents: write
+  
 jobs:
   scan:
     name: Scan Idealista Madrid (Apify)

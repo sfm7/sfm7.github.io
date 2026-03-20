@@ -7,7 +7,7 @@ detects new listings and price changes, and persists everything to Neon.
 Environment variables required:
     APIFY_API_TOKEN       - Your Apify API token (from console.apify.com)
     DATABASE_URL          - Neon PostgreSQL connection string
-                           (postgresql://user:pass@host/dbname?sslmode=require)
+                           (postgresql://user:pass@host/dbname?sslmode=requhire)
 
 Optional:
     APIFY_ACTOR           - Apify actor ID (default: igolaizola/idealista-scraper)
@@ -55,7 +55,7 @@ def fetch_all_properties(api_token: str) -> list[dict]:
     """Run the Apify Idealista actor and return all scraped listings."""
     client = ApifyClient(api_token)
     actor_id = os.getenv("APIFY_ACTOR", DEFAULT_ACTOR)
-    search_url = os.getenv("SEARCH_URL", DEFAULT_SEARCH_URL)
+    search_url = os.getenv("SEARCH_URL") or DEFAULT_SEARCH_URL
     max_items = int(os.getenv("MAX_ITEMS", str(DEFAULT_MAX_ITEMS)))
 
     run_input = {

@@ -47,7 +47,7 @@ jobs:
           SLACK_DROP_THRESHOLD: ${{ vars.SLACK_DROP_THRESHOLD || '1' }}
           DASHBOARD_URL:        ${{ vars.DASHBOARD_URL || 'https://sfm7.github.io/madrid-tracker/dashboard/' }}
           # Optional scan parameters (set as repo vars to override)
-          SEARCH_URL:          ${{ vars.SEARCH_URL }}
+          SEARCH_URL:      ${{ vars.SEARCH_URL || 'https://www.idealista.com/venta-viviendas/madrid-madrid/' }}
           MAX_ITEMS:           ${{ vars.MAX_ITEMS || '200' }}
         run: python scanner.py
 
